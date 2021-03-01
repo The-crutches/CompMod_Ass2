@@ -91,13 +91,14 @@ AI_m0_prior <- brm(
   data = df,
   family = gaussian,
   prior = AI_p0,
-  sample_prior="only"##,
-  #backend="cmdstanr",
+  sample_prior="only",
+  backend="cmdstanr",
   #threads = threading(2)
 )
 
-library(rstan)
-pp_check(CB_m0_prior, nsamples=100)
+
+
+pp_check(AI_m0_prior, nsamples=100)
 
 # prior for model 1
 get_prior(
@@ -112,9 +113,22 @@ AI_p1 <- c(
   prior(normal(0, 0.2), class = b, coef = Diagnosis )
 )
 
-pp_check(CB_m0_prior, nsamples=100)
+AI_m1_prior <- brm(
+  formula = AI_f1,
+  data = df,
+  family = gaussian,
+  prior = AI_p1,
+  sample_prior="only",
+  backend="cmdstanr",
+  #threads = threading(2)
+)
+pp_check(AI_m1_prior, nsamples=100)
 ```
 
+```{r}
+check_cmdstan_toolchain()
+install_cmdstan(cores = 2)
+```
 
 Q1.2) Is altercentric intrusion related to specific symptoms *in the patients*? Identify which of the symptoms could be relevant (given their description above). Should you include more than one symptom? Build models, priors, predictive checks. Assess the evidence and report models and results, including plots. Discuss whether the results make sense.
 
