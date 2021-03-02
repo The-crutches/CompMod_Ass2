@@ -42,7 +42,10 @@ library(brms)
 
 df <- read_csv("~/Uni stuff/Computational Modeling/CompMod_Ass2/Ass2.csv") %>% 
                  mutate(
-                   AI = (AltercentricIntrusion - mean(AltercentricIntrusion, na.rm=T))/sd(AltercentricIntrusion, na.rm=T)
+                   AI = (AltercentricIntrusion - mean(AltercentricIntrusion, na.rm=T))/sd(AltercentricIntrusion, na.rm=T),
+                    VH = (VoiceHearing - mean(VoiceHearing, na.rm=T))/sd(VoiceHearing, na.rm=T),
+                    MR = (MindReading - mean(MindReading, na.rm=T))/sd(MindReading, na.rm=T),
+                   AP = (Apathy - mean(Apathy, na.rm=T))/sd(Apathy, na.rm=T)
                  )
 
 set.seed(123)
@@ -190,6 +193,64 @@ Q1.2) Is altercentric intrusion related to specific symptoms *in the patients*? 
 
 
 ```{r}
+
+cor(df)
+
+# Filtering out the patients
+
+df <- read_csv("~/Uni stuff/Computational Modeling/CompMod_Ass2/Ass2.csv")
+
+df <- filter(df, Diagnosis == 1)
+
+df <- df %>% 
+  mutate(
+    AI = (AltercentricIntrusion - mean(AltercentricIntrusion, na.rm=T))/sd(AltercentricIntrusion, na.rm=T),
+                    VH = (VoiceHearing - mean(VoiceHearing, na.rm=T))/sd(VoiceHearing, na.rm=T),
+                    MR = (MindReading - mean(MindReading, na.rm=T))/sd(MindReading, na.rm=T),
+                   AP = (Apathy - mean(Apathy, na.rm=T))/sd(Apathy, na.rm=T)
+                 )
+    
+  
+
+
+ap_f <- bf(AI ~ AP)
+
+get_prior(
+  ap_f,
+  df,
+  family=gaussian
+)
+
+prior <- c(
+  prior(normal(0, 1), class = Intercept),
+  prior(normal(1, 0.5), class = sigma),
+  prior(normal(0, 0.2), class = b, coef = AP)
+)
+
+ap_m_prior <- brm(
+  formula = ap_f,
+  data = df,
+  family = gaussian,
+  prior = prior,
+  sample_prior="only",
+  backend="cmdstanr",
+  threads = threading(4)
+)
+
+
+
+pp_check(ap_m_prior, nsamples=100)
+
+ap_m0 <- brm(
+  formula = ap_f,
+  data = df,
+  family = gaussian,
+  prior = prior,
+  sample_prior=T,
+  backend="cmdstanr",
+  threads = threading(2))
+
+pp_check(ap_m0, nsample = 100)
 
 ```
 
