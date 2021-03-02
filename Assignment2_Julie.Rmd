@@ -45,6 +45,7 @@ df <- read_csv("~/Uni stuff/Computational Modeling/CompMod_Ass2/Ass2.csv") %>%
                    AI = (AltercentricIntrusion - mean(AltercentricIntrusion, na.rm=T))/sd(AltercentricIntrusion, na.rm=T)
                  )
 
+set.seed(123)
 
 ##### REMEMBER TO MAKE LOG TRANSFORMATION ########
 ```
@@ -123,7 +124,62 @@ AI_m1_prior <- brm(
   #threads = threading(2)
 )
 pp_check(AI_m1_prior, nsamples=100)
+
+
 ```
+
+```{r}
+
+AI_m0 <- brm(
+  formula = AI_f0,
+  data = df,
+  family = gaussian,
+  prior = AI_p0,
+  sample_prior=T,
+  backend="cmdstanr",
+  threads = threading(2))
+  
+  
+  
+AI_m1_v2 <- brm(
+  formula = AI_f1,
+  data = df,
+  family = gaussian,
+  prior = AI_p1,
+  sample_prior=T,
+  backend="cmdstanr")
+  #threads = threading(2)
+
+## Posterior learning (against prior)
+
+posterior <- posterior_samples(AI_m0)
+posterior_m1 <- posterior_samples(AI_m1_v2)
+
+
+ggplot(posterior) +
+  theme_classic() +
+  geom_density(aes(prior_Intercept), fill="red", alpha=0.3) +
+  geom_density(aes(b_Intercept), fill="blue", alpha=0.5)
+
+ggplot(posterior_m1) +
+  theme_classic() +
+  geom_density(aes(prior_sigma), fill="red", alpha=0.3) +
+  geom_density(aes(sigma), fill="blue", alpha=0.5) 
+```
+```{r}
+## Plotting model 
+conditional_effects(AI_m1_v2)
+plot(conditional_effects(AI_m1_v2), points=T)
+
+plot(conditional_effects(AI_m1_v2, spaghetti=T, nsamples=100, method = "fitted"), points=T)
+
+plot(conditional_effects(AI_m1_v2, spaghetti=T, nsamples=100, method = "predict"), points=T)
+
+# Hypothesis
+hypothesis(AI_m1_v2, "Diagnosis > 0")
+hypothesis(AI_m1, "Diagnosis > 0")
+```
+
 
 ```{r}
 check_cmdstan_toolchain()
