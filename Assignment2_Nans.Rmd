@@ -35,11 +35,18 @@ The research questions you have to answer are the following:
 Q1.1) Does schizophrenia involve altercentric intrusion? Define model and priors. Test the implications of your priors (prior predictive checks) and if needed adjust them. Run the model. Test the quality of the fitted model (posterior predictive checks, prior-posterior updates). Assess the evidence in favor of an increased altercentric intrusion in schizophrenia. Report the model and the results, including plots.
 
 ```{r}
-library(tidyverse)
-library(rethinking)
-library(brms)
+pacman::p_load(
+  tidyverse,
+  here,
+  rethinking,
+  brms,
+  cmdstanr,
+  patchwork
+  )
+```
 
 
+```{r}
 df <- read_csv("Ass2.csv") %>% 
                  mutate(
                    AI = (AltercentricIntrusion - mean(AltercentricIntrusion, na.rm=T))/sd(AltercentricIntrusion, na.rm=T)
@@ -50,7 +57,6 @@ sapply(df, class)
 
 
 ```{r}
-
 # 1. Define your model
 ## Outcome distribution
 ggplot(df, aes(AI)) +
@@ -79,8 +85,10 @@ dens(rnorm(1e4, 0, 1))
 dens(rnorm(1e4, 1, 0.5))
 
 dens(rnorm(1e4, 0 + rnorm(1e4, 1, 0.5), 1))
+```
 
 
+```{r}
 # 2. Visualize the joint expectations of the model (prior + likelihood function)
 ## Predictive priors (ppcheck, but also conditional effects)
 ## Fiddle til you’re satisfied, but be transparent!
@@ -95,7 +103,7 @@ AI_m0_prior <- brm(
   threads = threading(2)
 )
 
-library(rstan)
+#library(rstan)
 pm0 <- pp_check(AI_m0_prior, nsamples=100)
 
 # prior for model 1
@@ -125,6 +133,8 @@ AI_m1_prior <- brm(
 pm1 <- pp_check(AI_m1_prior, nsamples=100)
 
 pm0 + pm1
+
+summary(AI_m0_prior)
 ```
 
 ```{r}
@@ -174,16 +184,106 @@ ggplot(posterior) +
 p1<-pp_check(AI_m0_prior, nsamples=100)
 p2<-pp_check(AI_m0, nsamples=100)
 p1 + p2
+
+p5 <- pp_check(AI_m1_prior, nsamples =100)
+p6 <- pp_check(AI_m1_v2, nsamples =100)
+p5+p6
+
 ```
 
+```{r}
+## Plotting model 
+conditional_effects(AI_m1_v2, spaghetti = T, nsamples = 100, points = T)
+plot(conditional_effects(AI_m1_v2), points=T)
+
+plot(conditional_effects(AI_m1_v2, spaghetti=T, nsamples=100, method = "fitted"), points=T)
+
+plot(conditional_effects(AI_m1_v2, spaghetti=T, nsamples=100, method = "predict"), points=T)
+
+# Hypothesis
+hypothesis(AI_m1_v2, "Diagnosis > 0")
+#hypothesis(AI_m1, "Diagnosis > 0") #HVor er den her model?
+```
 
 
 Q1.2) Is altercentric intrusion related to specific symptoms *in the patients*? Identify which of the symptoms could be relevant (given their description above). Should you include more than one symptom? Build models, priors, predictive checks. Assess the evidence and report models and results, including plots. Discuss whether the results make sense.
 
 
-```{r}
+#Decsribtion from above - 6 variables: 
+1) ID, 
+2) AltercentricIntrusion (continuous score), 
+3) Diagnosis (schizophrenia vs. control), 
+4) VoiceHearing (severity of voice hearing symptoms, continuous score of the severity of the symptom as measured by a clinician), 
+5) MindReading (severity of delusions of mind reading, continuous score of the severity of the symptom as measured by a clinician); 
+6) Apathy (severity of lack of motivation in taking care of oneself, from washing to showing up at work, continuous score of the severity of the symptom as measured by a clinician). 
 
+#Remember only on patients
+```{r}
+df <- read_csv("Ass2.csv")
+
+df_1 <- filter(df, Diagnosis == 1)
+
+#scaling all variables
+df_1 <- df_1 %>% 
+  mutate(
+    AI = (AltercentricIntrusion - mean(AltercentricIntrusion, na.rm=T))/sd(AltercentricIntrusion, na.rm=T),
+                    VH = (VoiceHearing - mean(VoiceHearing, na.rm=T))/sd(VoiceHearing, na.rm=T),
+                    MR = (MindReading - mean(MindReading, na.rm=T))/sd(MindReading, na.rm=T),
+                   AP = (Apathy - mean(Apathy, na.rm=T))/sd(Apathy, na.rm=T)
+                 )
+
+df_1 <- select(df_1, c(ID, Diagnosis, AI, VH, MR, AP))
 ```
+
+
+```{r}
+library(corrplot)
+library(RColorBrewer)
+AIcor <-cor(df_1)
+corrplot(AIcor, type="upper", order="original",
+         col=brewer.pal(n=8, name="RdYlBu"))
+```
+
+```{r}
+ap_f <- bf(AI ~ AP)
+
+get_prior(
+  ap_f,
+  df_1,
+  family=gaussian
+)
+
+prior <- c(
+  prior(normal(0, 1), class = Intercept),
+  prior(normal(1, 0.5), class = sigma),
+  prior(normal(0, 0.2), class = b, coef = AP)
+)
+
+ap_m_prior <- brm(
+  formula = ap_f,
+  data = df_1,
+  family = gaussian,
+  prior = prior,
+  sample_prior="only",
+  backend="cmdstanr",
+  threads = threading(4)
+)
+
+
+pp_check(ap_m_prior, nsamples=100)
+
+ap_m0 <- brm(
+  formula = ap_f,
+  data = df_1,
+  family = gaussian,
+  prior = prior,
+  sample_prior=T,
+  backend="cmdstanr",
+  threads = threading(2))
+
+pp_check(ap_m0, nsample = 100)
+```
+
 
 
 ## Second part
