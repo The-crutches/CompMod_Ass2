@@ -164,7 +164,180 @@ Q1.2) Is altercentric intrusion related to specific symptoms *in the patients*? 
 
 
 ```{r}
+df <- read_csv("Ass2.csv")
 
+df <- filter(df, Diagnosis == 1)
+
+df <- df %>% 
+  mutate(
+    AI = (AltercentricIntrusion - mean(AltercentricIntrusion, na.rm=T))/sd(AltercentricIntrusion, na.rm=T),
+                    VH = (VoiceHearing - mean(VoiceHearing, na.rm=T))/sd(VoiceHearing, na.rm=T),
+                    MR = (MindReading - mean(MindReading, na.rm=T))/sd(MindReading, na.rm=T),
+                   AP = (Apathy - mean(Apathy, na.rm=T))/sd(Apathy, na.rm=T)
+                 )
+    
+  
+
+
+ap_f <- bf(AI ~ AP)
+
+get_prior(
+  ap_f,
+  df,
+  family=gaussian
+)
+
+prior <- c(
+  prior(normal(0, 1), class = Intercept),
+  prior(normal(1, 0.5), class = sigma),
+  prior(normal(0, 0.2), class = b, coef = AP)
+)
+
+ap_m_prior <- brm(
+  formula = ap_f,
+  data = df,
+  family = gaussian,
+  prior = prior,
+  sample_prior="only",
+  backend="cmdstanr",
+  threads = threading(4)
+)
+
+
+
+pp_check(ap_m_prior, nsamples=100)
+
+ap_m0 <- brm(
+  formula = ap_f,
+  data = df,
+  family = gaussian,
+  prior = prior,
+  sample_prior=T,
+  backend="cmdstanr",
+  threads = threading(2))
+
+
+pp_check(ap_m0, nsample = 100)
+
+
+
+ap_m_prior <- brm(
+  formula = ap_f,
+  data = df,
+  family = gaussian,
+  prior = prior,
+  sample_prior="only",
+  backend="cmdstanr",
+  threads = threading(4)
+)
+
+
+pp_check(ap_m_prior, nsamples=100)
+
+
+test1_f<-bf(AI~1+AP)
+
+b5.1 <- 
+  brm(
+    data = df, 
+    family = gaussian,
+    formula = test1_f,
+    prior = prior,
+    sample_prior=T,
+    backend="cmdstanr",
+    threads = threading(4)
+ )
+
+print(b5.1)
+
+test2_f<-bf(AI~1+VH)
+
+get_prior(
+  test2_f,
+  df,
+  family=gaussian
+)
+
+prior <- c(
+  prior(normal(0, 1), class = Intercept),
+  prior(normal(1, 0.5), class = sigma),
+  prior(normal(0, 0.2), class = b, coef = VH)
+)
+
+b5.2 <- 
+  brm(
+    data = df, 
+    family = gaussian,
+    formula = test2_f,
+    prior = prior,
+    sample_prior=T,
+    backend="cmdstanr",
+    threads = threading(4)
+ )
+
+print(b5.2)
+
+test3_f<-bf(AI~1+AP+VH)
+
+get_prior(
+  test3_f,
+  df,
+  family=gaussian
+)
+
+prior <- c(
+  prior(normal(0, 1), class = Intercept),
+  prior(normal(1, 0.5), class = sigma),
+  prior(normal(0, 0.2), class = b, coef = AP),
+  prior(normal(0, 0.2), class = b, coef = VH)
+)
+
+b5.3 <- 
+  brm(
+    data = df, 
+    family = gaussian,
+    formula = test3_f,
+    prior = prior,
+    sample_prior=T,
+    backend="cmdstanr",
+    threads = threading(4)
+ )
+
+print(b5.3)
+
+test4_f<-bf(AI~1+AP+VH+MR)
+
+get_prior(
+  test4_f,
+  df,
+  family=gaussian
+)
+
+prior <- c(
+  prior(normal(0, 1), class = Intercept),
+  prior(normal(1, 0.5), class = sigma),
+  prior(normal(0, 0.2), class = b, coef = AP),
+  prior(normal(0, 0.2), class = b, coef = VH),
+  prior(normal(0, 0.2), class = b, coef = MR)
+)
+
+b5.4 <- 
+  brm(
+    data = df, 
+    family = gaussian,
+    formula = test4_f,
+    prior = prior,
+    sample_prior=T,
+    backend="cmdstanr",
+    threads = threading(4)
+ )
+
+print(b5.4)
+
+stanplot(b5.4)
+stanplot(b5.3)
+stanplot(b5.2)
+stanplot(b5.1)
 ```
 
 

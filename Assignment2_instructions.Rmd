@@ -32,10 +32,124 @@ The research questions you have to answer are the following:
 
 ## First part
 
+```{r}
+library(pacman)
+p_load(tidyverse, brms, patchwork, )
+
+
+df <- read_csv("Ass2.csv") %>% 
+                 mutate(
+                   AI = (AltercentricIntrusion - mean(AltercentricIntrusion, na.rm=T))/sd(AltercentricIntrusion, na.rm=T)
+                 )
+
+set.seed(123)
+```
+
+
 Q1.1) Does schizophrenia involve altercentric intrusion? Define model and priors. Test the implications of your priors (prior predictive checks) and if needed adjust them. Run the model. Test the quality of the fitted model (posterior predictive checks, prior-posterior updates). Assess the evidence in favor of an increased altercentric intrusion in schizophrenia. Report the model and the results, including plots.
 
 ```{r}
+# 1. Define your model
+## Outcome distribution
+ggplot(df, aes(AI)) +
+  theme_classic() +
+  geom_density()
+```
 
+
+```{r}
+# Creating the formulas
+AI_f0 <- bf(AI ~ 1)
+## Distribution of the outcome conditioned on the predictor
+AI_f1 <- bf(AI ~ 1 + Diagnosis)
+
+#Get prior for f0
+get_prior(
+  AI_f0,
+  df,
+  family=gaussian
+) #We get two parameters, intercept and sigma for the null-model
+
+# Defining prior for model0
+AI_p0 <- c(
+  prior(normal(0, 1), class = Intercept), #mean of 0, because we scaled, sd of 1, because we scaled 
+  prior(normal(1, 0.5), class = sigma) #mean of 1 because that is the mean expected error and a sd of 0.5 because we want it to go all the way down to 0
+)
+
+#Getting prior for model predicted by diagnosis 
+get_prior(
+  AI_f1,
+  df,
+  family=gaussian
+)#Three parameters, intercept, sigma, coefficients 
+
+AI_p1 <- c(
+  prior(normal(0, 1), class = Intercept),
+  prior(normal(1, 0.5), class = sigma),
+  prior(normal(0, 0.2), class = b, coef = Diagnosis ) #mean of 0 because we do not want to imply that the diagnosis do predict something, and a sd of 0.2 because cohens d effect size is at .2 (an average effect size in psychology) and it is double this size as the sd is 0.2
+)
+
+# 2. Visualize the joint expectations of the model (prior + likelihood function)
+## Predictive priors (ppcheck, but also conditional effects)
+## Fiddle til you’re satisfied, but be transparent!
+
+#Running with sample_prior only on null-model, checking the priors 
+AI_m0_prior <- brm(
+  formula = AI_f0,
+  data = df,
+  family = gaussian,
+  prior = AI_p0,
+  sample_prior="only",
+  backend="cmdstanr",
+  threads = threading(2)
+)
+
+#Checking priors
+p1 <- pp_check(AI_m0_prior, nsamples=100)
+
+#Running model with diagnosis, with sample prior only 
+AI_m1_prior <- brm(
+  formula = AI_f1,
+  data = df,
+  family = gaussian,
+  prior = AI_p1,
+  sample_prior="only",
+  backend="cmdstanr",
+  #threads = threading(2)
+)
+
+p2 <- pp_check(AI_m1_prior, nsamples = 100)
+
+p1+p2
+```
+
+
+```{r}
+#Running the full models
+
+AI_m0 <- brm(
+  formula = AI_f0,
+  data = df,
+  family = gaussian,
+  prior = AI_p0,
+  sample_prior="yes",
+  backend="cmdstanr",
+  threads = threading(2)
+)
+
+AI_m1 <- brm(
+  formula = AI_f1,
+  data = df,
+  family = gaussian,
+  prior = AI_p1,
+  sample_prior="yes",
+  backend="cmdstanr",
+  threads = threading(2)
+)
+
+p3<-pp_check(AI_m0, nsamples=100)
+p4<-pp_check(AI_m1, nsamples=100)
+p3 + p4
 ```
 
 
@@ -44,6 +158,140 @@ Q1.2) Is altercentric intrusion related to specific symptoms *in the patients*? 
 
 ```{r}
 
+#preparing the data, filtering schizophrenics, scaling all predictors and outcome variables
+df <- read_csv("Ass2.csv")
+
+df <- filter(df, Diagnosis == 1)
+
+df <- df %>% 
+  mutate(
+    AI = (AltercentricIntrusion - mean(AltercentricIntrusion, na.rm=T))/sd(AltercentricIntrusion, na.rm=T),
+                    VH = (VoiceHearing - mean(VoiceHearing, na.rm=T))/sd(VoiceHearing, na.rm=T),
+                    MR = (MindReading - mean(MindReading, na.rm=T))/sd(MindReading, na.rm=T),
+                   AP = (Apathy - mean(Apathy, na.rm=T))/sd(Apathy, na.rm=T)
+                 )
+
+set.seed(123)    
+
+```
+
+building new models;
+
+```{r}
+#starting with mind reading as a predictor
+prior <- c(
+  prior(normal(0, 1), class = Intercept),
+  prior(normal(1, 0.5), class = sigma),
+  prior(normal(0, 0.2), class = b, coef = MR)
+)
+
+mr_m1 <- brm(
+  formula = AI ~ 1 + MR,
+  data = df,
+  family = gaussian,
+  prior = prior,
+  sample_prior= "only",
+  backend="cmdstanr",
+  threads = threading(2)
+)
+
+pp_check(mr_m1, nsample = 100)
+
+mr_m2 <- brm(
+  formula = AI ~ 1 + MR,
+  data = df,
+  family = gaussian,
+  prior = prior,
+  sample_prior= TRUE,
+  backend="cmdstanr",
+  threads = threading(2)
+)
+
+pp_check(mr_m2, nsample = 100)
+
+summary(mr_m2)
+
+stanplot(mr_m2)
+```
+
+instead we are trying all predictors at the same time, to see what is up. 
+
+```{r}
+prior <- c(
+  prior(normal(0, 1), class = Intercept),
+  prior(normal(1, 0.5), class = sigma),
+  prior(normal(0, 0.2), class = b, coef = AP),
+  prior(normal(0, 0.2), class = b, coef = VH),
+  prior(normal(0, 0.2), class = b, coef = MR)
+)
+
+all_m1 <- 
+  brm(
+    data = df, 
+    family = gaussian,
+    formula = AI~ 1 + AP + VH + MR,
+    prior = prior,
+    sample_prior="only",
+    backend="cmdstanr",
+    threads = threading(2)
+ )
+
+pp_check(all_m1, nsample = 100)
+
+all_m2 <- 
+  brm(
+    data = df, 
+    family = gaussian,
+    formula = AI~ 1 + AP + VH + MR,
+    prior = prior,
+    sample_prior= TRUE,
+    backend="cmdstanr",
+    threads = threading(2)
+ )
+
+pp_check(all_m2, nsample = 100)
+
+stanplot(all_m2)
+```
+
+it seems that apathy is the best predictor. we therefore try a model with only apathy. 
+
+```{r}
+#we are starting with apathy as predictor
+prior <- c(
+  prior(normal(0, 1), class = Intercept),
+  prior(normal(1, 0.5), class = sigma),
+  prior(normal(0, 0.2), class = b, coef = AP)
+)
+
+ap_m1 <- brm(
+  formula = AI ~ 1 + AP,
+  data = df,
+  family = gaussian,
+  prior = prior,
+  sample_prior= "only",
+  backend="cmdstanr",
+  threads = threading(2)
+)
+
+
+pp_check(ap_m1, nsample = 100)
+
+
+ap_m2 <- brm(
+  formula = AI ~ 1 + AP,
+  data = df,
+  family = gaussian,
+  prior = prior,
+  sample_prior= TRUE,
+  backend="cmdstanr",
+  threads = threading(2)
+)
+
+
+pp_check(ap_m2, nsample = 100)
+
+stanplot(ap_m2)
 ```
 
 
