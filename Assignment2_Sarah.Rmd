@@ -32,21 +32,21 @@ The research questions you have to answer are the following:
 
 ## First part
 
-Q1.1) Does schizophrenia involve altercentric intrusion? Define model and priors. Test the implications of your priors (prior predictive checks) and if needed adjust them. Run the model. Test the quality of the fitted model (posterior predictive checks, prior-posterior updates). Assess the evidence in favor of an increased altercentric intrusion in schizophrenia. Report the model and the results, including plots.
-
 ```{r}
-library(tidyverse)
-library(rethinking)
-library(brms)
-pacman::p_load("patchwork")
+library(pacman)
+p_load(tidyverse, brms, patchwork, )
 
 
 df <- read_csv("Ass2.csv") %>% 
                  mutate(
                    AI = (AltercentricIntrusion - mean(AltercentricIntrusion, na.rm=T))/sd(AltercentricIntrusion, na.rm=T)
                  )
+
+set.seed(123)
 ```
 
+
+Q1.1) Does schizophrenia involve altercentric intrusion? Define model and priors. Test the implications of your priors (prior predictive checks) and if needed adjust them. Run the model. Test the quality of the fitted model (posterior predictive checks, prior-posterior updates). Assess the evidence in favor of an increased altercentric intrusion in schizophrenia. Report the model and the results, including plots.
 
 ```{r}
 # 1. Define your model
@@ -54,10 +54,13 @@ df <- read_csv("Ass2.csv") %>%
 ggplot(df, aes(AI)) +
   theme_classic() +
   geom_density()
+```
 
-# Creating the models
+
+```{r}
+# Creating the formulas
 AI_f0 <- bf(AI ~ 1)
-## Distribution of the outcome conditioned on the predictors
+## Distribution of the outcome conditioned on the predictor
 AI_f1 <- bf(AI ~ 1 + Diagnosis)
 
 #Get prior for f0
@@ -72,12 +75,6 @@ AI_p0 <- c(
   prior(normal(0, 1), class = Intercept), #mean of 0, because we scaled, sd of 1, because we scaled 
   prior(normal(1, 0.5), class = sigma) #mean of 1 because that is the mean expected error and a sd of 0.5 because we want it to go all the way down to 0
 )
-
-#Plotting the priors (dont know i we need it in the assignment)
-dens(rnorm(1e4, 0, 1))
-dens(rnorm(1e4, 1, 0.5))
-
-dens(rnorm(1e4, 0 + rnorm(1e4, 1, 0.5), 1))
 
 #Getting prior for model predicted by diagnosis 
 get_prior(
@@ -124,7 +121,10 @@ AI_m1_prior <- brm(
 p2 <- pp_check(AI_m1_prior, nsamples = 100)
 
 p1+p2
+```
 
+
+```{r}
 #Running the full models
 
 AI_m0 <- brm(
@@ -150,13 +150,6 @@ AI_m1 <- brm(
 p3<-pp_check(AI_m0, nsamples=100)
 p4<-pp_check(AI_m1, nsamples=100)
 p3 + p4
-
-a <- posterior_predict(AI_m0)
-
-summary(AI_m0)
-summary(AI_m1)
-
-residuals(AI_m0)
 ```
 
 
@@ -164,6 +157,8 @@ Q1.2) Is altercentric intrusion related to specific symptoms *in the patients*? 
 
 
 ```{r}
+
+#preparing the data, filtering schizophrenics, scaling all predictors and outcome variables
 df <- read_csv("Ass2.csv")
 
 df <- filter(df, Diagnosis == 1)
@@ -175,144 +170,53 @@ df <- df %>%
                     MR = (MindReading - mean(MindReading, na.rm=T))/sd(MindReading, na.rm=T),
                    AP = (Apathy - mean(Apathy, na.rm=T))/sd(Apathy, na.rm=T)
                  )
-    
-  
 
+set.seed(123)    
 
-ap_f <- bf(AI ~ AP)
+```
 
-get_prior(
-  ap_f,
-  df,
-  family=gaussian
-)
+building new models;
 
+```{r}
+#starting with mind reading as a predictor
 prior <- c(
   prior(normal(0, 1), class = Intercept),
   prior(normal(1, 0.5), class = sigma),
-  prior(normal(0, 0.2), class = b, coef = AP)
+  prior(normal(0, 0.2), class = b, coef = MR)
 )
 
-ap_m_prior <- brm(
-  formula = ap_f,
+mr_m1 <- brm(
+  formula = AI ~ 1 + MR,
   data = df,
   family = gaussian,
   prior = prior,
-  sample_prior="only",
+  sample_prior= "only",
   backend="cmdstanr",
-  threads = threading(4)
+  threads = threading(2)
 )
 
+pp_check(mr_m1, nsample = 100)
 
-
-pp_check(ap_m_prior, nsamples=100)
-
-ap_m0 <- brm(
-  formula = ap_f,
+mr_m2 <- brm(
+  formula = AI ~ 1 + MR,
   data = df,
   family = gaussian,
   prior = prior,
-  sample_prior=T,
+  sample_prior= TRUE,
   backend="cmdstanr",
-  threads = threading(2))
-
-
-pp_check(ap_m0, nsample = 100)
-
-
-
-ap_m_prior <- brm(
-  formula = ap_f,
-  data = df,
-  family = gaussian,
-  prior = prior,
-  sample_prior="only",
-  backend="cmdstanr",
-  threads = threading(4)
+  threads = threading(2)
 )
 
+pp_check(mr_m2, nsample = 100)
 
-pp_check(ap_m_prior, nsamples=100)
+summary(mr_m2)
 
+stanplot(mr_m2)
+```
 
-test1_f<-bf(AI~1+AP)
+instead we are trying all predictors at the same time, to see what is up. 
 
-b5.1 <- 
-  brm(
-    data = df, 
-    family = gaussian,
-    formula = test1_f,
-    prior = prior,
-    sample_prior=T,
-    backend="cmdstanr",
-    threads = threading(4)
- )
-
-print(b5.1)
-
-test2_f<-bf(AI~1+VH)
-
-get_prior(
-  test2_f,
-  df,
-  family=gaussian
-)
-
-prior <- c(
-  prior(normal(0, 1), class = Intercept),
-  prior(normal(1, 0.5), class = sigma),
-  prior(normal(0, 0.2), class = b, coef = VH)
-)
-
-b5.2 <- 
-  brm(
-    data = df, 
-    family = gaussian,
-    formula = test2_f,
-    prior = prior,
-    sample_prior=T,
-    backend="cmdstanr",
-    threads = threading(4)
- )
-
-print(b5.2)
-
-test3_f<-bf(AI~1+AP+VH)
-
-get_prior(
-  test3_f,
-  df,
-  family=gaussian
-)
-
-prior <- c(
-  prior(normal(0, 1), class = Intercept),
-  prior(normal(1, 0.5), class = sigma),
-  prior(normal(0, 0.2), class = b, coef = AP),
-  prior(normal(0, 0.2), class = b, coef = VH)
-)
-
-b5.3 <- 
-  brm(
-    data = df, 
-    family = gaussian,
-    formula = test3_f,
-    prior = prior,
-    sample_prior=T,
-    backend="cmdstanr",
-    threads = threading(4)
- )
-
-print(b5.3)
-
-test4_f<-bf(AI~1+AP+VH+MR)
-
-get_prior(
-  test4_f,
-  df,
-  family=gaussian
-)
-
+```{r}
 prior <- c(
   prior(normal(0, 1), class = Intercept),
   prior(normal(1, 0.5), class = sigma),
@@ -321,23 +225,121 @@ prior <- c(
   prior(normal(0, 0.2), class = b, coef = MR)
 )
 
-b5.4 <- 
+all_m1 <- 
   brm(
     data = df, 
     family = gaussian,
-    formula = test4_f,
+    formula = AI~ 1 + AP + VH + MR,
     prior = prior,
-    sample_prior=T,
+    sample_prior="only",
     backend="cmdstanr",
-    threads = threading(4)
+    threads = threading(2)
  )
 
-print(b5.4)
+pp_check(all_m1, nsample = 100)
 
-stanplot(b5.4)
-stanplot(b5.3)
-stanplot(b5.2)
-stanplot(b5.1)
+all_m2 <- 
+  brm(
+    data = df, 
+    family = gaussian,
+    formula = AI~ 1 + AP + VH + MR,
+    prior = prior,
+    sample_prior= TRUE,
+    backend="cmdstanr",
+    threads = threading(2)
+ )
+
+pp_check(all_m2, nsample = 100)
+
+stanplot(all_m2)
+```
+
+it seems that apathy is the best predictor. we therefore try a model with only apathy. 
+
+```{r}
+prior <- c(
+  prior(normal(0, 1), class = Intercept),
+  prior(normal(1, 0.5), class = sigma),
+  prior(normal(0, 0.2), class = b, coef = AP)
+)
+
+ap_m1 <- brm(
+  formula = AI ~ 1 + AP,
+  data = df,
+  family = gaussian,
+  prior = prior,
+  sample_prior= "only",
+  backend="cmdstanr",
+  threads = threading(2)
+)
+
+
+pp_check(ap_m1, nsample = 100)
+
+
+ap_m2 <- brm(
+  formula = AI ~ 1 + AP,
+  data = df,
+  family = gaussian,
+  prior = prior,
+  sample_prior= TRUE,
+  backend="cmdstanr",
+  threads = threading(2)
+)
+
+
+pp_check(ap_m2, nsample = 100)
+
+stanplot(ap_m2)
+```
+
+
+```{r}
+f <- 
+  fitted(ap_m2) %>%
+  as_tibble() %>%
+  bind_cols(df)
+
+head(f)
+
+f %>% 
+  
+  ggplot(aes(x = AP, y = AI)) +
+  geom_point(size = 2, shape = 1, color = "firebrick4") +
+  geom_segment(aes(xend = AP, yend = Estimate), 
+               size = 1/4) +
+  geom_line(aes(y = Estimate), 
+            color = "firebrick4") +
+  coord_cartesian(ylim = range(df$AI)) +
+  theme_bw() +
+  theme(panel.grid = element_blank()) 
+```
+```{r}
+df %>% 
+  select(AI, AP, MR, VH) %>% 
+  pairs(col = "firebrick4")
+
+df %>%
+  ggplot(aes(x = MR, y = VH)) +
+  geom_point(alpha = 1/2, color = "firebrick4") +
+  geom_smooth(method = "lm")
+  theme_bw() +
+  theme(panel.grid = element_blank())
+```
+
+```{r}
+fitted(ap_m2) %>%
+  as_tibble() %>%
+  bind_cols(df) %>%
+   
+ggplot(aes(x = AP, y = Estimate)) +
+  geom_abline(linetype = 2, color = "grey50", size = .5) +
+  geom_point(size = 1.5, color = "firebrick4", alpha = 3/4) +
+  geom_linerange(aes(ymin = Q2.5, ymax = Q97.5),
+                 size = 1/4, color = "firebrick4") +
+  geom_linerange(aes(ymin = Estimate - Est.Error, 
+                     ymax = Estimate + Est.Error),
+                 size = 1/2, color = "firebrick4")
 ```
 
 
@@ -403,7 +405,7 @@ d1 <- d %>% subset(Diagnosis==1) %>% dplyr::select(-Diagnosis, -ID)
 pairs.panels(d1)
 
 
-write_csv(d, "data/Ass2.csv")
+#write_csv(d, "data/Ass2.csv")
 ```
 
 

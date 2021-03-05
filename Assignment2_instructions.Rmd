@@ -212,6 +212,8 @@ pp_check(mr_m2, nsample = 100)
 summary(mr_m2)
 
 stanplot(mr_m2)
+
+
 ```
 
 instead we are trying all predictors at the same time, to see what is up. 
@@ -257,7 +259,6 @@ stanplot(all_m2)
 it seems that apathy is the best predictor. we therefore try a model with only apathy. 
 
 ```{r}
-#we are starting with apathy as predictor
 prior <- c(
   prior(normal(0, 1), class = Intercept),
   prior(normal(1, 0.5), class = sigma),
@@ -357,6 +358,6 @@ d1 <- d %>% subset(Diagnosis==1) %>% dplyr::select(-Diagnosis, -ID)
 pairs.panels(d1)
 
 
-write_csv(d, "data/Ass2.csv")
+#write_csv(d, "data/Ass2.csv")
 ```
 
