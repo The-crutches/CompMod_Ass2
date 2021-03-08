@@ -252,6 +252,8 @@ all_m2 <-
 pp_check(all_m2, nsample = 100)
 
 stanplot(all_m2)
+
+summary(all_m2)
 ```
 
 it seems that apathy is the best predictor. we therefore try a model with only apathy. 
@@ -291,6 +293,47 @@ ap_m2 <- brm(
 pp_check(ap_m2, nsample = 100)
 
 stanplot(ap_m2)
+```
+
+
+```{r}
+prior <- c(
+  prior(normal(0, 1), class = Intercept),
+  prior(normal(1, 0.5), class = sigma),
+  prior(normal(0, 0.2), class = b, coef = AP),
+  prior(normal(0, 0.2), class = b, coef = VH)
+)
+
+ap_vh_m1 <- brm(
+  formula = AI ~ 1 + AP + VH,
+  data = df,
+  family = gaussian,
+  prior = prior,
+  sample_prior= "only",
+  backend="cmdstanr",
+  threads = threading(2)
+)
+
+
+pp_check(ap_vh_m1, nsample = 100)
+
+
+ap_vh_m2 <- brm(
+  formula = AI ~ 1 + AP + VH,
+  data = df,
+  family = gaussian,
+  prior = prior,
+  sample_prior= TRUE,
+  backend="cmdstanr",
+  threads = threading(2)
+)
+
+
+pp_check(ap_vh_m2, nsample = 100)
+
+stanplot(ap_vh_m2)
+
+summary(ap_vh_m2)
 ```
 
 
@@ -347,7 +390,213 @@ ggplot(aes(x = AP, y = Estimate)) +
 
 Q2.1) However, we know that the diagnosis is based on symptom assessment: if the overall sum of symptoms is severe enough, the participant gets a diagnosis. In other words, by selecting the patients, and including the symptoms in the model we might have inadvertently introduced an issue in our inference. Do try to draw a causal graph (Directed Acyclical Graph) of the variables and compare it with the types of causal graphs presented in the slides. Discuss which biases you might have introduced.
 
+```{r}
+p_load(daggity)
+install.packages("dagitty")
+
+```
+
+
 Q2.2.) Redesign your analysis following the graph and report how the results change
+
+```{r}
+df <- read_csv("Ass2.csv")
+
+df <- df %>% 
+  mutate(
+    AI = (AltercentricIntrusion - mean(AltercentricIntrusion, na.rm=T))/sd(AltercentricIntrusion, na.rm=T),
+                    VH = (VoiceHearing - mean(VoiceHearing, na.rm=T))/sd(VoiceHearing, na.rm=T),
+                    MR = (MindReading - mean(MindReading, na.rm=T))/sd(MindReading, na.rm=T),
+                   AP = (Apathy - mean(Apathy, na.rm=T))/sd(Apathy, na.rm=T)
+                 )
+
+set.seed(123) 
+```
+
+trying the full model again with controls included
+
+```{r}
+prior <- c(
+  prior(normal(0, 1), class = Intercept),
+  prior(normal(1, 0.5), class = sigma),
+  prior(normal(0, 0.2), class = b, coef = AP),
+  prior(normal(0, 0.2), class = b, coef = VH),
+  prior(normal(0, 0.2), class = b, coef = MR)
+)
+
+n_all_m1 <- 
+  brm(
+    data = df, 
+    family = gaussian,
+    formula = AI~ 1 + AP + VH + MR,
+    prior = prior,
+    sample_prior="only",
+    backend="cmdstanr",
+    threads = threading(2)
+ )
+
+pp_check(n_all_m1, nsample = 100)
+
+n_all_m2 <- 
+  brm(
+    data = df, 
+    family = gaussian,
+    formula = AI~ 1 + AP + VH + MR,
+    prior = prior,
+    sample_prior= TRUE,
+    backend="cmdstanr",
+    threads = threading(2)
+ )
+
+pp_check(n_all_m2, nsample = 100)
+
+stanplot(n_all_m2)
+
+summary(n_all_m2)
+```
+
+
+```{r}
+prior <- c(
+  prior(normal(0, 1), class = Intercept),
+  prior(normal(1, 0.5), class = sigma),
+  prior(normal(0, 0.2), class = b, coef = VH),
+  prior(normal(0, 0.2), class = b, coef = MR)
+)
+
+n_vh_mr_m1 <- brm(
+  formula = AI ~ 1 + VH + MR,
+  data = df,
+  family = gaussian,
+  prior = prior,
+  sample_prior= "only",
+  backend="cmdstanr",
+  threads = threading(2)
+)
+
+
+pp_check(n_vh_mr_m1, nsample = 100)
+
+
+n_vh_mr_m2 <- brm(
+  formula = AI ~ 1 + VH + MR,
+  data = df,
+  family = gaussian,
+  prior = prior,
+  sample_prior= TRUE,
+  backend="cmdstanr",
+  threads = threading(2)
+)
+
+
+pp_check(n_vh_mr_m2, nsample = 100)
+
+stanplot(n_vh_mr_m2)
+
+summary(n_vh_mr_m2)
+```
+
+
+```{r}
+prior <- c(
+  prior(normal(0, 1), class = Intercept),
+  prior(normal(1, 0.5), class = sigma),
+  prior(normal(0, 0.2), class = b, coef = VH)
+)
+
+n_vh_m1 <- brm(
+  formula = AI ~ 1 + VH,
+  data = df,
+  family = gaussian,
+  prior = prior,
+  sample_prior= "only",
+  backend="cmdstanr",
+  threads = threading(2)
+)
+
+
+pp_check(n_vh_m1, nsample = 100)
+
+
+n_vh_m2 <- brm(
+  formula = AI ~ 1 + VH,
+  data = df,
+  family = gaussian,
+  prior = prior,
+  sample_prior= TRUE,
+  backend="cmdstanr",
+  threads = threading(2)
+)
+
+
+pp_check(n_vh_m2, nsample = 100)
+
+stanplot(n_vh_m2)
+
+summary(n_vh_m2)
+```
+
+
+```{r}
+prior <- c(
+  prior(normal(0, 1), class = Intercept),
+  prior(normal(1, 0.5), class = sigma),
+  prior(normal(0, 0.2), class = b, coef = MR)
+)
+
+n_mr_m1 <- brm(
+  formula = AI ~ 1 + MR,
+  data = df,
+  family = gaussian,
+  prior = prior,
+  sample_prior= "only",
+  backend="cmdstanr",
+  threads = threading(2)
+)
+
+
+pp_check(n_mr_m1, nsample = 100)
+
+
+n_mr_m2 <- brm(
+  formula = AI ~ 1 + MR,
+  data = df,
+  family = gaussian,
+  prior = prior,
+  sample_prior= TRUE,
+  backend="cmdstanr",
+  threads = threading(2)
+)
+
+
+pp_check(n_mr_m2, nsample = 100)
+
+stanplot(n_mr_m2)
+
+summary(n_mr_m2)
+```
+
+
+```{r}
+prior <- c(
+  prior(normal(0, 1), class = Intercept),
+  prior(normal(1, 0.5), class = sigma),
+  prior(normal(0, 0.2), class = b, coef = MR)
+)
+
+cor_m1 <- brm(
+  formula = VH ~ 1 + MR,
+  data = df,
+  family = gaussian,
+  prior = prior,
+  sample_prior= TRUE,
+  backend="cmdstanr",
+  threads = threading(2)
+)
+
+
+summary(cor_m1)
+```
 
 
 ## Third part
@@ -358,6 +607,10 @@ Q3.1) Look through the code and identify whether the results you have match the 
 
 Q3.2) OPTIONAL: is this a general pattern? Try varying the parameters (e.g. correlation values) and assess whether the new dataset(s) leads to the same biases in your analysis.
 
+
+```{r}
+
+```
 
 
 ```{r}
