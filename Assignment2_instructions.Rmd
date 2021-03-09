@@ -34,7 +34,7 @@ The research questions you have to answer are the following:
 
 ```{r}
 library(pacman)
-p_load(tidyverse, brms, patchwork, dplyr, dagitty)
+p_load(tidyverse, brms, patchwork, dplyr, dagitty, rethinking)
 
 
 df <- read_csv("Ass2.csv") %>% 
@@ -309,6 +309,25 @@ stanplot(ap_m2)
 Q2.1) However, we know that the diagnosis is based on symptom assessment: if the overall sum of symptoms is severe enough, the participant gets a diagnosis. In other words, by selecting the patients, and including the symptoms in the model we might have inadvertently introduced an issue in our inference. Do try to draw a causal graph (Directed Acyclical Graph) of the variables and compare it with the types of causal graphs presented in the slides. Discuss which biases you might have introduced.
 
 ```{r}
+#Creating a DAG showing our expectation of the relationship of MR, VH, AP, and AI
+plant_dag <- dagitty( "dag {
+VH -> D
+MR -> D
+AP -> D
+VH -> AI
+MR -> AI
+U -> MR
+U -> VH
+}")
+coordinates( plant_dag ) <- list( x=c(VH=5,MR=10,AP=1, D=5, AI =5, U=7.5) ,
+y=c(VH=5,MR=5,AP=5, D=2, AI = 10, U = 5) )
+drawdag( plant_dag )
+```
+
+
+Q2.2.) Redesign your analysis following the graph and report how the results change
+
+```{r}
 df <- read_csv("Ass2.csv")
 
 df <- df %>% 
@@ -333,6 +352,7 @@ prior <- c(
   prior(normal(0, 0.2), class = b, coef = MR)
 )
 
+#Only prior
 n_all_m1 <- 
   brm(
     data = df, 
@@ -346,6 +366,7 @@ n_all_m1 <-
 
 pp_check(n_all_m1, nsample = 100)
 
+#On data
 n_all_m2 <- 
   brm(
     data = df, 
@@ -363,7 +384,7 @@ stanplot(n_all_m2)
 
 summary(n_all_m2)
 ```
-
+Using only voice hearing and mind reading as apathy does not have any effect anymore
 
 ```{r}
 prior <- c(
@@ -373,6 +394,7 @@ prior <- c(
   prior(normal(0, 0.2), class = b, coef = MR)
 )
 
+#Only prior
 n_vh_mr_m1 <- brm(
   formula = AI ~ 1 + VH + MR,
   data = df,
@@ -405,7 +427,7 @@ stanplot(n_vh_mr_m2)
 summary(n_vh_mr_m2)
 ```
 
-Q2.2.) Redesign your analysis following the graph and report how the results change
+
 
 
 ## Third part
