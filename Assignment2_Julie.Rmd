@@ -62,7 +62,7 @@ ggplot(df, aes(AI)) +
   theme_classic() +
   geom_density()
 
-# Creating the models
+# Creating the formulas
 AI_f0 <- bf(AI ~ 1)
 ## Distribution of the outcome conditioned on the predictors
 AI_f1 <- bf(AI ~ 1 + Diagnosis)
