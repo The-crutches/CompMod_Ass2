@@ -34,7 +34,7 @@ The research questions you have to answer are the following:
 
 ```{r}
 library(pacman)
-p_load(tidyverse, brms, patchwork, )
+p_load(tidyverse, brms, patchwork, dagitty)
 
 
 df <- read_csv("Ass2.csv") %>% 
@@ -158,7 +158,7 @@ Q1.2) Is altercentric intrusion related to specific symptoms *in the patients*? 
 
 ```{r}
 
-#preparing the data, filtering schizophrenics, scaling all predictors and outcome variables
+#preparing the data, scaling all predictors and outcome variables
 df <- read_csv("Ass2.csv")
 
 df <- filter(df, Diagnosis == 1)
@@ -358,9 +358,9 @@ f %>%
   theme(panel.grid = element_blank()) 
 ```
 ```{r}
-df %>% 
+df %>%
   select(AI, AP, MR, VH) %>% 
-  pairs(col = "firebrick4")
+  pairs(df, col = "firebrick4")
 
 df %>%
   ggplot(aes(x = MR, y = VH)) +
@@ -391,8 +391,6 @@ ggplot(aes(x = AP, y = Estimate)) +
 Q2.1) However, we know that the diagnosis is based on symptom assessment: if the overall sum of symptoms is severe enough, the participant gets a diagnosis. In other words, by selecting the patients, and including the symptoms in the model we might have inadvertently introduced an issue in our inference. Do try to draw a causal graph (Directed Acyclical Graph) of the variables and compare it with the types of causal graphs presented in the slides. Discuss which biases you might have introduced.
 
 ```{r}
-p_load(daggity)
-install.packages("dagitty")
 
 ```
 
@@ -596,6 +594,8 @@ cor_m1 <- brm(
 
 
 summary(cor_m1)
+
+df %>% ggplot(aes(VH, MR)) + geom_point() + geom_smooth(method = "lm")
 ```
 
 

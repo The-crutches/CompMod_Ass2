@@ -34,7 +34,7 @@ The research questions you have to answer are the following:
 
 ```{r}
 library(pacman)
-p_load(tidyverse, brms, patchwork, )
+p_load(tidyverse, brms, patchwork, dplyr, dagitty)
 
 
 df <- read_csv("Ass2.csv") %>% 
@@ -54,6 +54,9 @@ Q1.1) Does schizophrenia involve altercentric intrusion? Define model and priors
 ggplot(df, aes(AI)) +
   theme_classic() +
   geom_density()
+
+
+
 ```
 
 
@@ -172,6 +175,11 @@ df <- df %>%
                  )
 
 set.seed(123)    
+
+
+df %>%
+  dplyr::select(AI, AP, MR, VH) %>% 
+  pairs(df, col = "firebrick4")
 
 ```
 
@@ -299,6 +307,103 @@ stanplot(ap_m2)
 ## Second part
 
 Q2.1) However, we know that the diagnosis is based on symptom assessment: if the overall sum of symptoms is severe enough, the participant gets a diagnosis. In other words, by selecting the patients, and including the symptoms in the model we might have inadvertently introduced an issue in our inference. Do try to draw a causal graph (Directed Acyclical Graph) of the variables and compare it with the types of causal graphs presented in the slides. Discuss which biases you might have introduced.
+
+```{r}
+df <- read_csv("Ass2.csv")
+
+df <- df %>% 
+  mutate(
+    AI = (AltercentricIntrusion - mean(AltercentricIntrusion, na.rm=T))/sd(AltercentricIntrusion, na.rm=T),
+                    VH = (VoiceHearing - mean(VoiceHearing, na.rm=T))/sd(VoiceHearing, na.rm=T),
+                    MR = (MindReading - mean(MindReading, na.rm=T))/sd(MindReading, na.rm=T),
+                   AP = (Apathy - mean(Apathy, na.rm=T))/sd(Apathy, na.rm=T)
+                 )
+
+set.seed(123) 
+```
+
+trying the full model again with controls included
+
+```{r}
+prior <- c(
+  prior(normal(0, 1), class = Intercept),
+  prior(normal(1, 0.5), class = sigma),
+  prior(normal(0, 0.2), class = b, coef = AP),
+  prior(normal(0, 0.2), class = b, coef = VH),
+  prior(normal(0, 0.2), class = b, coef = MR)
+)
+
+n_all_m1 <- 
+  brm(
+    data = df, 
+    family = gaussian,
+    formula = AI~ 1 + AP + VH + MR,
+    prior = prior,
+    sample_prior="only",
+    backend="cmdstanr",
+    threads = threading(2)
+ )
+
+pp_check(n_all_m1, nsample = 100)
+
+n_all_m2 <- 
+  brm(
+    data = df, 
+    family = gaussian,
+    formula = AI~ 1 + AP + VH + MR,
+    prior = prior,
+    sample_prior= TRUE,
+    backend="cmdstanr",
+    threads = threading(2)
+ )
+
+pp_check(n_all_m2, nsample = 100)
+
+stanplot(n_all_m2)
+
+summary(n_all_m2)
+```
+
+
+```{r}
+prior <- c(
+  prior(normal(0, 1), class = Intercept),
+  prior(normal(1, 0.5), class = sigma),
+  prior(normal(0, 0.2), class = b, coef = VH),
+  prior(normal(0, 0.2), class = b, coef = MR)
+)
+
+n_vh_mr_m1 <- brm(
+  formula = AI ~ 1 + VH + MR,
+  data = df,
+  family = gaussian,
+  prior = prior,
+  sample_prior= "only",
+  backend="cmdstanr",
+  threads = threading(2)
+)
+
+
+pp_check(n_vh_mr_m1, nsample = 100)
+
+
+n_vh_mr_m2 <- brm(
+  formula = AI ~ 1 + VH + MR,
+  data = df,
+  family = gaussian,
+  prior = prior,
+  sample_prior= TRUE,
+  backend="cmdstanr",
+  threads = threading(2)
+)
+
+
+pp_check(n_vh_mr_m2, nsample = 100)
+
+stanplot(n_vh_mr_m2)
+
+summary(n_vh_mr_m2)
+```
 
 Q2.2.) Redesign your analysis following the graph and report how the results change
 
